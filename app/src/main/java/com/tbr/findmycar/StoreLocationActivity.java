@@ -4,8 +4,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.location.Location;
-import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
+import android.support.v7.app.ActionBarActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -76,28 +76,18 @@ public class StoreLocationActivity extends ActionBarActivity implements GoogleAp
     private void proceedToNavigateScreen() {
         Log.i(dbgTag, "in proceedToNavigateScreen");
         Intent intent = new Intent();
+        intent.putExtra("lastLocation", mLastLocation);
         intent.setClass(this, NavigateActivity.class);
         startActivity(intent);
     }
 
     private void storeLocationAndLevel() {
-        storeLocationAndLevelToAttribute();
-        storeLocationAndLevelToPersistence();
-    }
-
-    private void storeLocationAndLevelToPersistence() {
-        //TODO
+        mSavedLevel = mChooseLevelSpinner.getSelectedItem().toString();
         SharedPreferences sp = getSharedPreferences("FindMyCar", Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sp.edit();
-        editor.putFloat("latitude", (float) mLastLocation.getLatitude());
-        editor.putFloat("longitude", (float) mLastLocation.getLongitude());
         editor.putString("level", mSavedLevel);
         editor.apply();
-    }
 
-    private void storeLocationAndLevelToAttribute() {
-        mSavedLevel = mChooseLevelSpinner.getSelectedItem().toString();
-        Log.i(dbgTag, "Level saved " + mSavedLevel);
         mLastLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (mLastLocation != null) {
             Log.i(dbgTag, "Location retrieve success");

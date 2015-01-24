@@ -2,24 +2,19 @@ package com.tbr.findmycar;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.support.v4.app.FragmentActivity;
-import android.support.v7.app.ActionBarActivity;
-import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
-
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.location.Location;
+import android.os.Bundle;
+import android.support.v4.app.FragmentActivity;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
-import com.google.android.gms.maps.MapFragment;
-import com.google.android.gms.maps.model.CameraPosition;
-import com.google.android.gms.maps.model.LatLng;
 
 
 public class NavigateActivity extends FragmentActivity implements SensorEventListener{
@@ -38,6 +33,7 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
     private ImageView mDirectionArrowImageView;
     private TextView mSavedLocationAndLevelTextView;
     private SharedPreferences mSP;
+    private Location mLastLocation;
 
     public void onSensorChanged(SensorEvent event){
         if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
@@ -72,6 +68,7 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
         setContentView(R.layout.activity_navigate);
 
         mSP = getSharedPreferences("FindMyCar", Context.MODE_PRIVATE);
+        mLastLocation = getIntent().getExtras().getParcelable("lastLocation");
         mSavedLocationAndLevelTextView = (TextView) findViewById(R.id.savedLocationAndLevelTextView);
         setSavedLocationAndLevelTextViewText();
         mDirectionArrowImageView = (ImageView) findViewById(R.id.directionArrowImageView);
@@ -92,8 +89,8 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
 
     private void setSavedLocationAndLevelTextViewText() {
         String savedLocationAndLevelText = "Level: " + mSP.getString("level", "not found") + "\n"
-                + "Longitude: " + mSP.getFloat("longitude", -1) + "\n"
-                + "Latitude: " + mSP.getFloat("latitude", -1);
+                + "Longitude: " + mLastLocation.getLongitude() + "\n"
+                + "Latitude: " + mLastLocation.getLatitude();
 
         mSavedLocationAndLevelTextView.setText(savedLocationAndLevelText);
 
