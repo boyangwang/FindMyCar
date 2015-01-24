@@ -36,7 +36,6 @@ public class StoreLocationActivity extends ActionBarActivity implements GoogleAp
         setupChooseLevelSpinner();
         buildGoogleApiClient();
         setupSaveLocationButton();
-
     }
 
     private void setupChooseLevelSpinner() {
