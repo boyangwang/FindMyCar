@@ -40,8 +40,8 @@
         </activity>
         <activity
             android:name=".NavigateActivity"
-            android:label="@string/title_activity_navigate" >
-        </activity>
+            android:label="@string/title_activity_navigate"
+            android:screenOrientation="portrait"></activity>
         <meta-data
             android:name="com.google.android.maps.v2.API_KEY"
             android:value="AIzaSyDuWOhw8HCJVPvcB82X88QwPjmukGIEBhc" />

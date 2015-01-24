@@ -9,17 +9,30 @@ import android.hardware.SensorManager;
 import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.widget.ImageView;
+import android.util.Log;
 import android.widget.TextView;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.MapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
+import com.google.android.gms.maps.model.MarkerOptions;
 
 
-public class NavigateActivity extends FragmentActivity implements SensorEventListener{
+public class NavigateActivity extends FragmentActivity implements SensorEventListener,
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
+        com.google.android.gms.location.LocationListener {
 
+    private GoogleApiClient mGoogleApiClient = null;
     private static final String dbgTag = "NavigateActivity";
+    public static final double RADIAN_TO_DEGREE = 57.2957795;
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
     private Sensor mMagnetometer;
@@ -29,11 +42,14 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
     private float[] mGeomagnetic;
     private float mAzimut;
 
-    private GoogleMap map;
-    private ImageView mDirectionArrowImageView;
-    private TextView mSavedLocationAndLevelTextView;
+    private GoogleMap mMapFragment;
+
     private SharedPreferences mSP;
-    private Location mLastLocation;
+    private Location mSavedLocation;
+    private Marker mCurrentLocationMarker;
+    private Marker mSavedLocationMarker;
+    private Location mCurrentLocation;
+    private LocationRequest mLocationRequest;
 
     public void onSensorChanged(SensorEvent event){
         if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
@@ -55,8 +71,24 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
         }
     }
 
+    public void buildGoogleApiClient() {
+        Log.i(dbgTag, "Build google api client start");
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                .addConnectionCallbacks((GoogleApiClient.ConnectionCallbacks) this)
+                .addOnConnectionFailedListener((GoogleApiClient.OnConnectionFailedListener) this)
+                .addApi(LocationServices.API)
+                .build();
+
+        Log.i(dbgTag, "Build google api client done " + mGoogleApiClient.toString());
+    }
+
     private void setArrowDirection() {
-        mDirectionArrowImageView.setRotation((float) (mAzimut * 57.2957795));
+//        mDirectionArrowImageView.setRotation((float) (mAzimut * 57.2957795));
+        if (mCurrentLocationMarker != null) {
+            Log.i(dbgTag, "before marker set rotation");
+            mCurrentLocationMarker.setRotation((float) (mAzimut * RADIAN_TO_DEGREE));
+            Log.i(dbgTag, "after marker set rotation");
+        }
     }
 
     public void onAccuracyChanged(Sensor sensor, int accuracy){
@@ -67,11 +99,8 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_navigate);
 
+        buildGoogleApiClient();
         mSP = getSharedPreferences("FindMyCar", Context.MODE_PRIVATE);
-        mLastLocation = getIntent().getExtras().getParcelable("lastLocation");
-        mSavedLocationAndLevelTextView = (TextView) findViewById(R.id.savedLocationAndLevelTextView);
-        setSavedLocationAndLevelTextViewText();
-        mDirectionArrowImageView = (ImageView) findViewById(R.id.directionArrowImageView);
         mSensorInfo = (TextView) findViewById(R.id.sensorInfo);
 
         // deal with sensor manager
@@ -79,20 +108,8 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
         mAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mMagnetometer = mSensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
 
-        // deal with map fragment
-        /*
-        map = ((MapFragment)getFragmentManager().findFragmentById(R.id.map)).getMap();
-        if(map != null){
-            initializeMap();
-        }*/
-    }
-
-    private void setSavedLocationAndLevelTextViewText() {
-        String savedLocationAndLevelText = "Level: " + mSP.getString("level", "not found") + "\n"
-                + "Longitude: " + mLastLocation.getLongitude() + "\n"
-                + "Latitude: " + mLastLocation.getLatitude();
-
-        mSavedLocationAndLevelTextView.setText(savedLocationAndLevelText);
+        // deal with mMapFragment fragment
+        mMapFragment = ((MapFragment) getFragmentManager().findFragmentById(R.id.map)).getMap();
 
     }
 
@@ -110,38 +127,99 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
         mSensorManager.unregisterListener(this);
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_navigate, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void initializeMap(){
+    private void initializeMap() {
         // Enable or disable current position
 
-        // Initialize type of map
-        map.setMapType(GoogleMap.MAP_TYPE_NORMAL);
+        // Initialize type of mMapFragment
+        mMapFragment.setMapType(GoogleMap.MAP_TYPE_NORMAL);
 
         // Initialize traffic overlay
-        map.setTrafficEnabled(false);
+        mMapFragment.setTrafficEnabled(false);
 
         // Enable rotation gestures
-        map.getUiSettings().setRotateGesturesEnabled(true);
+        mMapFragment.getUiSettings().setRotateGesturesEnabled(true);
+
+        // change camera to current position
+        LatLng loc = getLatLngFromLocation(LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient));
+        mMapFragment.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 18));
+
+        // enable my loc
+        // mMapFragment.setMyLocationEnabled(true);
+        putMarkersForCurrentAndSavedLocation();
+    }
+
+    private LatLng getLatLngFromLocation(Location location) {
+        return new LatLng(location.getLatitude(), location.getLongitude());
+    }
+
+    private void putMarkersForCurrentAndSavedLocation() {
+        mSavedLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        mSavedLocationMarker = mMapFragment.addMarker(new MarkerOptions()
+                        .position(getLatLngFromLocation(mSavedLocation))
+                        .title("MyCar")
+                        .icon(BitmapDescriptorFactory.fromResource(R.drawable.car))
+        );
+        mCurrentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+        mCurrentLocationMarker = mMapFragment.addMarker(new MarkerOptions()
+                .position(getLatLngFromLocation(mSavedLocation))
+                .icon(BitmapDescriptorFactory.fromResource(R.drawable.direction_arrow_32)));
+    }
+
+
+    private void createLocationRequest() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(4000);
+        mLocationRequest.setFastestInterval(1200);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+        if (mMapFragment != null) {
+            initializeMap();
+        }
+        if (mLocationRequest == null) {
+            createLocationRequest();
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, (com.google.android.gms.location.LocationListener) this);
+        }
+    }
+
+
+    @Override
+    public void onConnectionFailed(ConnectionResult result) {
+        // Refer to the javadoc for ConnectionResult to see what error codes might be returned in
+        // onConnectionFailed.
+        Log.i(dbgTag, "Connection failed: ConnectionResult.getErrorCode() = " + result.getErrorCode());
+    }
+
+
+    @Override
+    public void onConnectionSuspended(int cause) {
+        // The connection to Google Play services was lost for some reason. We call connect() to
+        // attempt to re-establish the connection.
+        Log.i(dbgTag, "Connection suspended");
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mGoogleApiClient.connect();
+
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+//        if (mGoogleApiClient.isConnected()) {
+//            mGoogleApiClient.disconnect();
+//        }
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        mCurrentLocation = location;
+        LatLng loc = getLatLngFromLocation(mCurrentLocation);
+        mCurrentLocationMarker.setPosition(loc);
     }
 }
