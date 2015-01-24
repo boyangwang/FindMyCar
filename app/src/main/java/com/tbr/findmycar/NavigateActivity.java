@@ -1,6 +1,7 @@
 package com.tbr.findmycar;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.support.v4.app.FragmentActivity;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -11,6 +12,7 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -33,6 +35,9 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
     private float mAzimut;
 
     private GoogleMap map;
+    private ImageView mDirectionArrowImageView;
+    private TextView mSavedLocationAndLevelTextView;
+    private SharedPreferences mSP;
 
     public void onSensorChanged(SensorEvent event){
         if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
@@ -49,8 +54,13 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
                 SensorManager.getOrientation(R, orientation);
                 mAzimut = orientation[0];
                 mSensorInfo.setText("Result: " + mAzimut);
+                setArrowDirection();
             }
         }
+    }
+
+    private void setArrowDirection() {
+        mDirectionArrowImageView.setRotation((float) (mAzimut * 57.2957795));
     }
 
     public void onAccuracyChanged(Sensor sensor, int accuracy){
@@ -61,6 +71,10 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_navigate);
 
+        mSP = getSharedPreferences("FindMyCar", Context.MODE_PRIVATE);
+        mSavedLocationAndLevelTextView = (TextView) findViewById(R.id.savedLocationAndLevelTextView);
+        setSavedLocationAndLevelTextViewText();
+        mDirectionArrowImageView = (ImageView) findViewById(R.id.directionArrowImageView);
         mSensorInfo = (TextView) findViewById(R.id.sensorInfo);
 
         // deal with sensor manager
@@ -74,6 +88,15 @@ public class NavigateActivity extends FragmentActivity implements SensorEventLis
         if(map != null){
             initializeMap();
         }*/
+    }
+
+    private void setSavedLocationAndLevelTextViewText() {
+        String savedLocationAndLevelText = "Level: " + mSP.getString("level", "not found") + "\n"
+                + "Longitude: " + mSP.getFloat("longitude", -1) + "\n"
+                + "Latitude: " + mSP.getFloat("latitude", -1);
+
+        mSavedLocationAndLevelTextView.setText(savedLocationAndLevelText);
+
     }
 
 

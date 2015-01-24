@@ -1,6 +1,8 @@
 package com.tbr.findmycar;
 
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.location.Location;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -80,11 +82,17 @@ public class StoreLocationActivity extends ActionBarActivity implements GoogleAp
 
     private void storeLocationAndLevel() {
         storeLocationAndLevelToAttribute();
-        storeLocationAndLevelToSharedPreference();
+        storeLocationAndLevelToPersistence();
     }
 
-    private void storeLocationAndLevelToSharedPreference() {
+    private void storeLocationAndLevelToPersistence() {
         //TODO
+        SharedPreferences sp = getSharedPreferences("FindMyCar", Context.MODE_PRIVATE);
+        SharedPreferences.Editor editor = sp.edit();
+        editor.putFloat("latitude", (float) mLastLocation.getLatitude());
+        editor.putFloat("longitude", (float) mLastLocation.getLongitude());
+        editor.putString("level", mSavedLevel);
+        editor.apply();
     }
 
     private void storeLocationAndLevelToAttribute() {
