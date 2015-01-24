@@ -1,5 +1,6 @@
 package com.tbr.findmycar;
 
+import android.content.Intent;
 import android.location.Location;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -64,7 +65,7 @@ public class StoreLocationActivity extends ActionBarActivity implements GoogleAp
         mSaveLocationButton.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 //TODO: display spinner
-                StoreLocationActivity.this.storeLocationAndLevelToAttribute();
+                StoreLocationActivity.this.storeLocationAndLevel();
                 StoreLocationActivity.this.proceedToNavigateScreen();
             }
         });
@@ -73,6 +74,18 @@ public class StoreLocationActivity extends ActionBarActivity implements GoogleAp
 
     private void proceedToNavigateScreen() {
         Log.i(dbgTag, "in proceedToNavigateScreen");
+        Intent intent = new Intent();
+        intent.setClass(this, NavigateActivity.class);
+        startActivity(intent);
+    }
+
+    private void storeLocationAndLevel() {
+        storeLocationAndLevelToAttribute();
+        storeLocationAndLevelToSharedPreference();
+    }
+
+    private void storeLocationAndLevelToSharedPreference() {
+        //TODO
     }
 
     private void storeLocationAndLevelToAttribute() {
