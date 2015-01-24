@@ -4,5 +4,6 @@
     <string name="app_name">FindMyCar</string>
     <string name="hello_world">Hello world!</string>
     <string name="action_settings">Settings</string>
+    <string name="SaveLocationButtonText">Save Location</string>
 
 </resources>
